@@ -1,7 +1,11 @@
 #pragma once
 
 #include <iostream>
-#include "Eigen/Eigen"
+#include <unordered_map>
+#include <map>
+#include <vector>
+#include <Eigen/Eigen>
+#include <list>
 
 using namespace std;
 using namespace Eigen;
@@ -23,11 +27,8 @@ struct PolygonalMesh
 	
 	unsigned int NumCell2Ds = 0;
 	vector<unsigned int> Cell2DsId = {};
-	vector<unsigned int> Cell2DsNumVertices = {};
-	vector<unsigned int> Cell2DsNumEdges = {};
-	vector<array<unsigned int, 8 >> Cell2DsVertices = {};
-	vector<array<unsigned int, 8 >> Cell2DsEdges = {};
-	map<unsigned int, list<unsigned int>> MarkerCell2Ds = {};
+	unordered_map<unsigned int, vector <unsigned int>> Cell2DsVertices;
+	unordered_map<unsigned int, vector<unsigned int>> Cell2DsEdges;
  
 };
 

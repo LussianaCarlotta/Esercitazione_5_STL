@@ -1,19 +1,27 @@
+#include "PolygonalMesh.hpp"
 #include "Utils.hpp"
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <vector>
+#include <list>
+#include <Eigen/Dense>
 
 namespace PolygonalLibrary
 {
+//Importa le mesh
 bool ImportMesh(PolygonalMesh& mesh)
 {
-
+	// Importa i vertici 
     if(!ImportCell0Ds(mesh))
         return false;
 
+	// Importa gli spigoli
     if(!ImportCell1Ds(mesh))
         return false;
-
+	
+	// Importa le celle
     if(!ImportCell2Ds(mesh))
         return false;
 
@@ -28,25 +36,19 @@ bool ImportCell0Ds(PolygonalMesh& mesh)
     if(file.fail())
         return false;
 
-    list<vector<string>> listLines;
-
+    list<string> listLines;
     string line;
-	getline(file, line);
 	
+	// Legge tutte le righe del file
     while (getline(file, line))
 	{
-		stringstream ss(line);
-		string tmp;
-		vector<string> val;
-		while(getline (ss, tmp, ';'))
-		{
-			val.push_back(tmp);
-		}
-        listLines.push_back(val);
+        listLines.push_back(line);
 	}
 	
     file.close();
 	
+	// Rimuove l'header
+	listLines.pop_front();
 	
     mesh.NumCell0Ds = listLines.size(); 
 
@@ -56,43 +58,36 @@ bool ImportCell0Ds(PolygonalMesh& mesh)
         return false;
     }
 	
-	// dimensiono:
     mesh.Cell0DsId.reserve(mesh.NumCell0Ds);
     mesh.Cell0DsCoordinates = Eigen::MatrixXd::Zero(3, mesh.NumCell0Ds);
 
-    for (const vector<string>& line : listLines)
+    for (string& line : listLines)
     {
-        istringstream converter_id(line[0]);
-		istringstream converter_marker(line[1]);
-		istringstream converter_coordX(line[2]);
-		istringstream converter_coordY(line[3]);
+		replace(line.begin(), line.end(), ';', ' ');
+		istringstream converter(line);
 		
 		unsigned int id;
 		unsigned int marker;
 		Vector2d coord;
 		
-		converter_id >> id;
-		converter_marker >> marker;
-		converter_coordX >> mesh.Cell0DsCoordinates(0, id);
-		converter_coordY >> mesh.Cell0DsCoordinates(1, id);
+		converter >> id >> marker >> mesh.Cell0DsCoordinates(0, id) >> mesh.Cell0DsCoordinates(1, id);
 		
 		mesh.Cell0DsId.push_back(id);
 		
 
-    /// Memorizza i marker
-    if (marker != 0) 
-    {
-        // devo inserire il nuovo id nella lista corrispondente alla chiave marker
-        auto it = mesh.MarkerCell0Ds.find(marker);
-        if(it != mesh.MarkerCell0Ds.end())
-        {
-            (*it).second.push_back(id);
-        }
-        else 
+    // Memorizza i marker in una mappa
+		if (marker != 0) 
 		{
-            mesh.MarkerCell0Ds.insert({marker, {id}});
-        }
-    }
+			auto it = mesh.MarkerCell0Ds.find(marker);
+			if(it == mesh.MarkerCell0Ds.end())
+			{
+				mesh.MarkerCell0Ds.insert({marker, {id}});
+			}
+			else 
+			{
+				it->second.push_back(id);
+			}
+		}
     }
 
     return true; 
@@ -102,25 +97,22 @@ bool ImportCell1Ds(PolygonalMesh& mesh)
 {
     ifstream file("./Cell1Ds.csv");
 
-    if(file.fail())
+    if(file.fail()){
         return false;
-
-    list<vector<string>> listLines;
+	}
+	
+	list<string> listLines;
     string line;
 	
-	getline(file, line);
+	// Legge tutte le righe del file
     while (getline(file, line))
 	{
-		stringstream ss(line);
-		string tmp;
-		vector<string> val;
-		while(getline (ss, tmp, ';'))
-		{
-			val.push_back(tmp);
-		}
-        listLines.push_back(val);
-	}	
+        listLines.push_back(line);
+	}
     file.close();
+	
+	// Rimuove l'header
+	listLines.pop_front();
 
 
     mesh.NumCell1Ds = listLines.size();
@@ -134,37 +126,32 @@ bool ImportCell1Ds(PolygonalMesh& mesh)
     mesh.Cell1DsId.reserve(mesh.NumCell1Ds);
     mesh.Cell1DsExtrema = Eigen::MatrixXi(2, mesh.NumCell1Ds);
 
-    for (const vector<string>& line : listLines)
+    for (string& line : listLines)
     {
-		istringstream converter_id(line[0]);
-		istringstream converter_marker(line[1]);
-		istringstream converter_origin(line[2]);
-		istringstream converter_end(line[3]);
+		replace(line.begin(), line.end(), ';', ' ');
+        istringstream converter(line);
 		
         unsigned int id;
 		unsigned int marker;
 		Vector2d vertices;
 		
-		converter_id >> id;
-		converter_marker >> marker;
-		converter_origin >> mesh.Cell1DsExtrema(0, id);
-		converter_end >> mesh.Cell1DsExtrema(1, id);
+		converter >> id >> marker >> mesh.Cell1DsExtrema(0, id) >> mesh.Cell1DsExtrema(1, id);
 		
 		mesh.Cell1DsId.push_back(id);
 
 		
-    /// Memorizza i marker
-	if (marker != 0) 
-	{
-		auto it = mesh.MarkerCell1Ds.find(marker);
-        if(it != mesh.MarkerCell1Ds.end())
-        {
-            (*it).second.push_back(id);
-        }
-        else {
-            mesh.MarkerCell1Ds.insert({marker, {id}});
-        }
-    }
+    // Memorizza i marker in una mappa
+		if (marker != 0) 
+		{
+			auto it = mesh.MarkerCell1Ds.find(marker);
+			if(it == mesh.MarkerCell1Ds.end())
+			{
+				mesh.MarkerCell1Ds.insert({marker, {id}});
+			}
+			else {
+				it->second.push_back(id);
+			}
+		}
     }
 
     return true;
@@ -178,91 +165,62 @@ bool ImportCell2Ds(PolygonalMesh& mesh)
     if(file.fail())
         return false;
 
-    list<vector<string>> listLines;
+    list<string> listLines;
     string line;
-	getline(file, line);
 	
+	// Legge tutte le righe del file
     while (getline(file, line))
 	{
-		stringstream ss(line);
-		string tmp;
-		vector<string> val;
-		while(getline (ss, tmp, ';'))
-		{
-			val.push_back(tmp);
-		}
-        listLines.push_back(val);
+        listLines.push_back(line);
 	}
     file.close();
+	
+	// Rimuove l'header
+	listLines.pop_front();
 	
 
     mesh.NumCell2Ds = listLines.size();
 
-    if (mesh.NumCell2Ds == 0)
+    if (listLines.empty())
     {
         cerr << "There is no cell 2D" << endl;
         return false;
     }
+	
+	// Pulisce
+	mesh.Cell2DsVertices.clear();
+    mesh.Cell2DsEdges.clear();
 
-    mesh.Cell2DsId.reserve(mesh.NumCell2Ds);
-    mesh.Cell2DsVertices.reserve(mesh.NumCell2Ds);
-    mesh.Cell2DsEdges.reserve(mesh.NumCell2Ds);
-
-    for (const vector<string>& line : listLines)
+    for (string& line : listLines)
     {
-		istringstream converter_id(line[0]);
-		istringstream converter_marker(line[1]);
+		replace(line.begin(), line.end(), ';', ' ');
+        istringstream converter(line);
 		
 		unsigned int id;
 		unsigned int marker;
-		
-		converter_id >> id;
-		converter_marker >> marker;
-		
- 
-		istringstream converter_numVertices(line[2]);
 		unsigned int numVertices;
-		converter_numVertices >> numVertices;
-		
-		istringstream converter_numEdges(line[4]);
 		unsigned int numEdges;
-		converter_numEdges >> numEdges;
 		
-		istringstream converter_vertices(line[3]);
-		istringstream converter_edges(line[5]);
+		converter >> id >> marker >> numVertices;
 		
-		array<unsigned int, 8> vertices;
-		array<unsigned int, 8> edges;
-		
-		for (unsigned int i = 3; i < 8; i++)
+		vector<unsigned int> vertices(numVertices);
+		for (unsigned int i = 0; i < numVertices; i++)
 		{
-			converter_vertices >> vertices[i];
+			converter >> vertices[i];
 		}
 		
-		for (unsigned int i = 3; i < 8; i++)
+		converter >> numEdges;
+		
+		vector<unsigned int> edges(numEdges);
+		for (unsigned int i = 0; i < numEdges; i++)
 		{
-			converter_edges >> edges[i];
+			converter >> edges[i];
 		}
 		
-        mesh.Cell2DsId.push_back(id);
-		mesh.Cell2DsNumVertices.push_back(numVertices);
-        mesh.Cell2DsVertices.push_back(vertices);
-		mesh.Cell2DsNumEdges.push_back(numEdges);
-        mesh.Cell2DsEdges.push_back(edges);
-	
-	/// Memorizza i marker
-	if (marker != 0) 
-	{
-		auto it = mesh.MarkerCell2Ds.find(marker);
-        if(it != mesh.MarkerCell2Ds.end())
-        {
-            (*it).second.push_back(id);
-        }
-        else {
-            mesh.MarkerCell2Ds.insert({marker, {id}});
-        }
-    }
+        mesh.Cell2DsVertices[id] = vertices;
+        mesh.Cell2DsEdges[id] = edges;
 	}
+
 	
     return true;
 }
